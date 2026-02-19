@@ -1,0 +1,108 @@
+name: SPARXSTAR Quality Control
+
+on:
+  push:
+    branches: ["main", "universe"]
+  pull_request:
+    branches: ["main", "universe"]
+
+jobs:
+  syntax-check:
+    name: Nginx Syntax Validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nginx
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y nginx
+
+      - name: Deploy SPARXSTAR Event Horizon Config
+        run: |
+          # 1. Copy Logic file to http context directory
+          sudo cp conf.d/spx-horizon-logic.conf /etc/nginx/conf.d/
+
+          # 2. Create snippets directory and copy Rules file
+          sudo mkdir -p /etc/nginx/snippets
+          sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
+
+          # 3. Create a minimal server block that includes the firewall rules
+          sudo tee /etc/nginx/sites-available/default > /dev/null <<'EOF'
+          server {
+              listen 80 default_server;
+              server_name localhost;
+              root /var/www/html;
+              index index.html;
+
+              # SPARXSTAR Event Horizon firewall
+              include /etc/nginx/snippets/spx-horizon-rules.conf;
+
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+          }
+          EOF
+
+          # Ensure the default site is enabled
+          sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+      - name: Validate Nginx Syntax
+        run: sudo nginx -t
+
+  firewall-test:
+    name: Attack Simulation
+    runs-on: ubuntu-latest
+    needs: syntax-check
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nginx
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y nginx
+
+      - name: Deploy SPARXSTAR Event Horizon Config
+        run: |
+          sudo cp conf.d/spx-horizon-logic.conf /etc/nginx/conf.d/
+          sudo mkdir -p /etc/nginx/snippets
+          sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
+
+          sudo tee /etc/nginx/sites-available/default > /dev/null <<'EOF'
+          server {
+              listen 80 default_server;
+              server_name localhost;
+              root /var/www/html;
+              index index.html;
+
+              include /etc/nginx/snippets/spx-horizon-rules.conf;
+
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+          }
+          EOF
+
+          sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+      - name: Validate & Start Nginx
+        run: |
+          sudo nginx -t
+          sudo systemctl restart nginx
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Test Dependencies
+        run: pip install requests pytest
+
+      - name: Run Attack Simulation Tests
+        run: pytest tests/test_firewall.py -v
