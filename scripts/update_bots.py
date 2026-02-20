@@ -70,7 +70,7 @@ def build_map_block(agents: list[str]) -> str:
     Each entry is wrapped in a case-insensitive regex (~*).
     Entries are grouped 8 per map value line to keep files scannable.
     """
-    sanitized = sorted({sanitize(a) for a in agents if sanitize(a)})
+    sanitized = sorted({sa for a in agents if (sa := sanitize(a))})
 
     # Build alternation groups of up to 8 entries per regex line
     group_size = 8
