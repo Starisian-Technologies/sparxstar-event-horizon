@@ -68,7 +68,9 @@ def test_emergency_bypass():
 def test_static_asset_bypass():
     """Ensure static images bypass the firewall and are served (not ghosted)."""
     try:
-        r = requests.get(f"{BASE_URL}/logo.png", timeout=2)
-        assert r.status_code != 444
+        # Make several rapid requests to catch any unintended rate limiting on static assets.
+        for _ in range(5):
+            r = requests.get(f"{BASE_URL}/logo.png", timeout=2)
+            assert r.status_code in [200, 404]
     except ConnectionError:
-        pytest.fail("Static asset connection was dropped — should be allowed.")
+        pytest.fail("Static asset connection was dropped or rate-limited — should be allowed.")
