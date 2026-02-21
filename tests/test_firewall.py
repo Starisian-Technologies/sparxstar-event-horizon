@@ -1,4 +1,8 @@
 """
+SPARXSTAR EVENT HORIZON v2.0
+Copyright (c) 2026 Starisian Technologies. All Rights Reserved.
+Proprietary / Closed Source.
+
 SPARXSTAR Event Horizon - Attack Simulation Tests
 Tests use Python requests + pytest.
 A `ConnectionError` on a blocked endpoint is a PASS (return 444 ghosts the connection).

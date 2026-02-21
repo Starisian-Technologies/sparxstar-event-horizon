@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """
+SPARXSTAR EVENT HORIZON v2.0
+Copyright (c) 2026 Starisian Technologies. All Rights Reserved.
+Proprietary / Closed Source.
+
 SPARXSTAR Event Horizon - Cloudflare IP Range Updater
 Fetches the official Cloudflare IP ranges and regenerates
 conf.d/spx-cloudflare-trust.conf so the RealIP module always

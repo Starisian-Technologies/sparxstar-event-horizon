@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 """
+SPARXSTAR EVENT HORIZON v2.0
+Copyright (c) 2026 Starisian Technologies. All Rights Reserved.
+Proprietary / Closed Source.
+
 SPARXSTAR Event Horizon - Bad Bot Signature Updater
 Fetches a curated bad-bot User-Agent list, sanitizes it, and regenerates
 the $spx_bad_bot map block inside conf.d/spx-horizon-logic.conf.
