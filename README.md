@@ -1,3 +1,6 @@
+
+<img width="1280" height="640" alt="sparxstar-event-horizon" src="https://github.com/user-attachments/assets/16f804e4-2bc9-4b0a-a3fc-eeb675529e1d" />
+
 # SPARXSTAR Event Horizon v2.0
 
 > **"Nothing malicious escapes."**
