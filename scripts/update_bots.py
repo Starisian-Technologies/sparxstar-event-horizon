@@ -66,30 +66,57 @@ def sanitize(agent: str) -> str:
 
 def build_map_block(agents: list[str]) -> str:
     """
-    Convert a flat list of User-Agent strings into a single Nginx map block.
-    Each entry is wrapped in a case-insensitive regex (~*).
-    Entries are grouped 8 per map value line to keep files scannable.
+    Convert a flat list of User-Agent strings into multiple Nginx map blocks.
+    To avoid regex length limits and backtracking issues, agents are split
+    into chunks and checked in separate maps, then aggregated.
     """
     sanitized = sorted({sa for a in agents if (sa := sanitize(a))})
-
-    # Build alternation groups of up to 8 entries per regex line
-    group_size = 8
-    groups = [
-        sanitized[i : i + group_size] for i in range(0, len(sanitized), group_size)
-    ]
-
+    
+    # Chunk size for splitting maps (e.g. 100 agents per map)
+    chunk_size = 100
+    chunks = [sanitized[i : i + chunk_size] for i in range(0, len(sanitized), chunk_size)]
+    
     lines = [
         "# Bad User Agents (auto-generated — do not edit manually)",
         "# Run: python scripts/update_bots.py  to refresh.",
-        "map $http_user_agent $spx_bad_bot {",
-        "    default 0;",
-        '    "~^$" 1;',
+        "",
+        "# Empty UA filtering (delegated to spx_empty_ua_is_bad map)",
     ]
-    for group in groups:
-        escaped = [re.escape(a) for a in group]
-        pattern = "|".join(escaped)
-        lines.append(f'    "~*({pattern})" 1;')
-    lines.append("}")
+
+    # Generate partial maps
+    map_variable_names = []
+    
+    for idx, chunk in enumerate(chunks, 1):
+        map_name = f"$spx_bad_bot_part{idx}"
+        map_variable_names.append(map_name)
+        
+        lines.append(f'map $http_user_agent {map_name} {{')
+        lines.append('    default 0;')
+        
+        # Group agents within this chunk for cleaner regex (8 per line)
+        group_size = 8
+        groups = [chunk[i : i + group_size] for i in range(0, len(chunk), group_size)]
+        
+        for group in groups:
+            escaped = [re.escape(a) for a in group]
+            pattern = "|".join(escaped)
+            lines.append(f'    "~*({pattern})" 1;')
+        lines.append("}\n")
+
+    # Aggregate all parts into the final $spx_bad_bot map
+    lines.append("# Aggregated Bad Bot Map")
+    concat_key = "".join(map_variable_names)
+    
+    # We combine the partial maps + the separate empty UA check
+    # 1. We assume $spx_empty_ua_is_bad is defined elsewhere (in logic core)
+    # The 'empty string' check in a map keyed by $http_user_agent works, but here 
+    # we are keying by the concatenated results.
+    # The simplest way is to include $spx_empty_ua_is_bad in the concatenation string.
+    
+    lines.append(f'map "{concat_key}$spx_empty_ua_is_bad" $spx_bad_bot {{')
+    lines.append('    default 0;')
+    lines.append('    "~1" 1;')
+    lines.append('}')
 
     return "\n".join(lines) + "\n"
 

@@ -105,6 +105,11 @@ def main() -> None:
     v6 = fetch_ip_ranges(CF_V6_URL)
     print(f"  → {len(v6)} IPv6 ranges", flush=True)
 
+    # Safety check: Ensure we didn't get empty lists
+    if not v4 or not v6:
+        print("ERROR: Cloudflare IP list empty — aborting.", file=sys.stderr)
+        sys.exit(1)
+
     config = build_config(v4, v6)
 
     if args.dry_run:
@@ -112,10 +117,21 @@ def main() -> None:
         print(config)
         return
 
-    output_path = Path(args.output)
+    output_path = Path(args.output).resolve()
+    # Atomic write: write to .tmp then rename
+    tmp_path = output_path.with_suffix(".tmp")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(config, encoding="utf-8")
-    print(f"  → Written: {output_path}", flush=True)
+    
+    try:
+        tmp_path.write_text(config, encoding="utf-8")
+        tmp_path.replace(output_path)
+        print(f"  → Written: {output_path}", flush=True)
+    except OSError as exc:
+        print(f"ERROR: Could not write to file: {exc}", file=sys.stderr)
+        if tmp_path.exists():
+            tmp_path.unlink()
+        sys.exit(1)
+        
     print("Done. Run  nginx -t  to verify syntax before reloading.", flush=True)
 
 
