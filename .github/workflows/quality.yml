@@ -30,24 +30,8 @@ jobs:
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
 
-          # 3. Create a minimal server block that includes the firewall rules
-          sudo tee /etc/nginx/sites-available/default > /dev/null <<'EOF'
-          server {
-              listen 80 default_server;
-              server_name localhost;
-              root /var/www/html;
-              index index.html;
-
-              # SPARXSTAR Event Horizon firewall
-              include /etc/nginx/snippets/spx-horizon-rules.conf;
-
-              location / {
-                  limit_conn spx_conn 50;
-                  limit_req  zone=spx_req burst=30 nodelay;
-                  try_files $uri $uri/ =404;
-              }
-          }
-          EOF
+          # 3. Deploy the shared CI server block (defines varnish_upstream stub)
+          sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
 
           # Ensure the default site is enabled
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
@@ -76,23 +60,7 @@ jobs:
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
 
-          sudo tee /etc/nginx/sites-available/default > /dev/null <<'EOF'
-          server {
-              listen 80 default_server;
-              server_name localhost;
-              root /var/www/html;
-              index index.html;
-
-              include /etc/nginx/snippets/spx-horizon-rules.conf;
-
-              location / {
-                  limit_conn spx_conn 50;
-                  limit_req  zone=spx_req burst=30 nodelay;
-                  try_files $uri $uri/ =404;
-              }
-          }
-          EOF
-
+          sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
       - name: Validate & Start Nginx
