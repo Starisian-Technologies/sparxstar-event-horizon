@@ -22,7 +22,7 @@
 ```text
 /etc/nginx/
 ├── conf.d/
-│   ├── spx-horizon-logic.conf      # The Brain (Maps, Zones, Logic)
+│   ├── spx-horizon-logic.conf      # The Brain (Maps, Zones, Logic — loaded ONCE)
 │   └── spx-cloudflare-trust.conf   # Auto-generated RealIP trust list
 ├── snippets/
 │   └── spx-horizon-rules.conf      # The Brawn (Server Block Rules)
@@ -36,8 +36,10 @@
 ### 1. Deploy Configuration Files
 Copy the configuration files to your Nginx directory (usually `/etc/nginx/`).
 
+> **⚠️ Important:** Only the *contents* of each folder are copied into Nginx — **do not** clone or symlink the repository into `/etc/nginx/` itself, and **never** add an `include` directive in `nginx.conf` that points to the cloned repository directory. Every `conf.d/` file must exist in exactly **one** location (`/etc/nginx/conf.d/`). Loading a file from both the repo clone and `/etc/nginx/conf.d/` will cause nginx to fail with a *"duplicate directive"* error.
+
 ```bash
-# Clone the repository
+# Clone the repository (anywhere outside /etc/nginx)
 git clone https://github.com/Starisian-Technologies/sparxstar-event-horizon.git
 cd sparxstar-event-horizon
 
@@ -66,8 +68,8 @@ sudo python3 /etc/nginx/scripts/update_bots.py --output /etc/nginx/conf.d/spx-ho
 Edit your `nginx.conf` or specific site configuration file.
 
 #### A. Global Logic (nginx.conf)
-Ensure `conf.d/*.conf` is included in the `http {}` block. This loads the Logic Core and RealIP settings.
-*Most default Nginx installs already have this.*
+Ensure `/etc/nginx/conf.d/*.conf` is included in the `http {}` block of `/etc/nginx/nginx.conf`. This loads the Logic Core and RealIP settings.
+*Most default Nginx installs already have this line — **do not add a second include pointing to the repository clone**.*
 
 #### B. Server Protection (sites-enabled/yoursite)
 Include the rules snippet inside your `server {}` block.
