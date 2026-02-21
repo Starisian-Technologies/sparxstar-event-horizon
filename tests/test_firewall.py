@@ -51,18 +51,16 @@ def test_env_file_block():
         requests.get(f"{BASE_URL}/.env", timeout=2)
 
 
-def test_emergency_bypass():
-    """Ensure the X-SPX-Bypass header overrides the firewall for admins."""
+def test_emergency_bypass_header_rejected():
+    """Ensure X-SPX-Bypass header alone does NOT bypass the firewall.
+    Bypass is now IP-based only; the header is no longer trusted."""
     headers = {"X-SPX-Bypass": "true"}
-    try:
-        r = requests.get(
+    with pytest.raises(ConnectionError):
+        requests.get(
             f"{BASE_URL}/?id=1' UNION SELECT user,password",
             headers=headers,
             timeout=2,
         )
-        assert r.status_code in [200, 404]
-    except ConnectionError:
-        pytest.fail("Emergency Bypass failed — malicious payload was still blocked.")
 
 
 def test_static_asset_bypass():
