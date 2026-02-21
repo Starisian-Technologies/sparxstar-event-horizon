@@ -45,8 +45,12 @@ def fetch_bot_list(url: str) -> list[str]:
         sys.exit(1)
 
     print(f"Fetching bot list from {url} …", flush=True)
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; SPARXSTAR/2.0; +https://github.com/Starisian-Technologies/sparxstar-event-horizon)"},
+    )
     try:
-        with urllib.request.urlopen(url, timeout=15) as response:
+        with urllib.request.urlopen(req, timeout=15) as response:
             lines = response.read().decode("utf-8", errors="replace").splitlines()
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
         print(f"ERROR: Could not fetch bot list: {exc}", file=sys.stderr)

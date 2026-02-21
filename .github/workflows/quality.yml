@@ -26,11 +26,14 @@ jobs:
           # 1. Copy Logic file to http context directory
           sudo cp conf.d/spx-horizon-logic.conf /etc/nginx/conf.d/
 
-          # 2. Create snippets directory and copy Rules file
+          # 2. Copy Cloudflare trust file to http context directory
+          sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
+
+          # 3. Create snippets directory and copy Rules file
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
 
-          # 3. Deploy the shared CI server block (defines varnish_upstream stub)
+          # 4. Deploy the shared CI server block (defines varnish_upstream stub)
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
 
           # Ensure the default site is enabled
@@ -57,6 +60,7 @@ jobs:
       - name: Deploy SPARXSTAR Event Horizon Config
         run: |
           sudo cp conf.d/spx-horizon-logic.conf /etc/nginx/conf.d/
+          sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
 

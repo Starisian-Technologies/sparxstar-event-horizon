@@ -40,8 +40,12 @@ def fetch_ip_ranges(url: str) -> list[str]:
         print(f"ERROR: Only HTTPS URLs are accepted: {url}", file=sys.stderr)
         sys.exit(1)
 
+    req = urllib.request.Request(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; SPARXSTAR/2.0; +https://github.com/Starisian-Technologies/sparxstar-event-horizon)"},
+    )
     try:
-        with urllib.request.urlopen(url, timeout=15) as response:
+        with urllib.request.urlopen(req, timeout=15) as response:
             lines = response.read().decode("utf-8", errors="replace").splitlines()
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
         print(f"ERROR: Could not fetch {url}: {exc}", file=sys.stderr)
