@@ -23,8 +23,8 @@ jobs:
 
       - name: Deploy SPARXSTAR Event Horizon Config
         run: |
-          # 1. Copy Logic file to http context directory
-          sudo cp conf.d/spx-horizon-logic.conf /etc/nginx/conf.d/
+          # 1. Copy Logic file to http context directory (000- prefix ensures it loads first)
+          sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
 
           # 2. Copy Cloudflare trust file to http context directory
           sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
@@ -59,7 +59,7 @@ jobs:
 
       - name: Deploy SPARXSTAR Event Horizon Config
         run: |
-          sudo cp conf.d/spx-horizon-logic.conf /etc/nginx/conf.d/
+          sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
           sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
