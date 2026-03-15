@@ -67,6 +67,15 @@ jobs:
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
+      - name: Enable Firewall for CI Test Runner
+        run: |
+          # The repo config whitelists 127.0.0.1 for local admin use, but CI
+          # connects from 127.0.0.1 — so the firewall would be bypassed and
+          # attack tests would never see a block. Remove the localhost bypass
+          # from the deployed copy only; the repo file is not changed.
+          sudo sed -i '/^\s*127\.0\.0\.1\s\+0;/d' /etc/nginx/conf.d/000-spx-horizon-logic.conf
+          sudo sed -i '/^\s*::1\s\+0;/d' /etc/nginx/conf.d/000-spx-horizon-logic.conf
+
       - name: Validate & Start Nginx
         run: |
           sudo nginx -t
