@@ -22,7 +22,7 @@
 ```text
 /etc/nginx/
 ├── conf.d/
-│   ├── spx-horizon-logic.conf      # The Brain (Maps, Zones, Logic — loaded ONCE)
+│   ├── 000-spx-horizon-logic.conf  # The Brain (Maps, Zones, Logic — loaded ONCE, must be first)
 │   └── spx-cloudflare-trust.conf   # Auto-generated RealIP trust list
 ├── snippets/
 │   └── spx-horizon-rules.conf      # The Brawn (Server Block Rules)
@@ -44,7 +44,7 @@ git clone https://github.com/Starisian-Technologies/sparxstar-event-horizon.git
 cd sparxstar-event-horizon
 
 # Copy configuration (adjust paths if your distro differs)
-sudo cp conf.d/spx-horizon-logic.conf /etc/nginx/conf.d/
+sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
 sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
 sudo mkdir -p /etc/nginx/scripts
 sudo cp scripts/*.py /etc/nginx/scripts/
@@ -61,7 +61,7 @@ sudo apt update && sudo apt install python3
 sudo python3 /etc/nginx/scripts/update_cloudflare.py --output /etc/nginx/conf.d/spx-cloudflare-trust.conf
 
 # Generate Bad Bot Map
-sudo python3 /etc/nginx/scripts/update_bots.py --output /etc/nginx/conf.d/spx-horizon-logic.conf
+sudo python3 /etc/nginx/scripts/update_bots.py --output /etc/nginx/conf.d/000-spx-horizon-logic.conf
 ```
 
 ### 3. Configure Your Nginx
@@ -90,7 +90,7 @@ server {
 ### 4. Important: Whitelist Your IP
 **⚠️ Before reloading, whitelist your IP to avoid locking yourself out.**
 
-Open `/etc/nginx/conf.d/spx-horizon-logic.conf` and find the **Emergency Bypass** section:
+Open `/etc/nginx/conf.d/000-spx-horizon-logic.conf` and find the **Emergency Bypass** section:
 
 ```nginx
 # 4. EMERGENCY BYPASS
@@ -117,14 +117,14 @@ Keep your threat intelligence fresh by adding these to crontab (`crontab -e`):
 
 ```cron
 # Update Bot List (Weekly)
-0 3 * * 1 /usr/bin/python3 /etc/nginx/scripts/update_bots.py --output /etc/nginx/conf.d/spx-horizon-logic.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
+0 3 * * 1 /usr/bin/python3 /etc/nginx/scripts/update_bots.py --output /etc/nginx/conf.d/000-spx-horizon-logic.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
 
 # Update Cloudflare IPs (Monthly)
 0 4 1 * * /usr/bin/python3 /etc/nginx/scripts/update_cloudflare.py --output /etc/nginx/conf.d/spx-cloudflare-trust.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
 ```
 
 ### Customizing Rules
-- **Add/Remove Blocked IPs:** Edit specific maps in `conf.d/spx-horizon-logic.conf`.
+- **Add/Remove Blocked IPs:** Edit specific maps in `conf.d/000-spx-horizon-logic.conf`.
 - **Change Rate Limits:** Adjust `limit_req_zone` in Logic Core configuration file.
 - **Allow Specific Bots:** Add specific IP/UA exclusions in the Logic file maps.
 

@@ -6,10 +6,10 @@ Proprietary / Closed Source.
 
 SPARXSTAR Event Horizon - Bad Bot Signature Updater
 Fetches a curated bad-bot User-Agent list, sanitizes it, and regenerates
-the $spx_bad_bot map block inside conf.d/spx-horizon-logic.conf.
+the $spx_bad_bot map block inside conf.d/000-spx-horizon-logic.conf.
 
 Usage:
-    python scripts/update_bots.py [--output conf.d/spx-horizon-logic.conf]
+    python scripts/update_bots.py [--output conf.d/000-spx-horizon-logic.conf]
 
 The script replaces the entire "Bad User Agents" map block in the target
 file so that manual edits are never needed.
@@ -32,7 +32,7 @@ BOT_LIST_URL = (
 
 # ---------------------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_LOGIC_FILE = REPO_ROOT / "conf.d" / "spx-horizon-logic.conf"
+DEFAULT_LOGIC_FILE = REPO_ROOT / "conf.d" / "000-spx-horizon-logic.conf"
 
 # Characters that are not safe inside an Nginx map string value
 _UNSAFE_RE = re.compile(r'[";{}\\]')
@@ -158,7 +158,7 @@ def main() -> None:
     parser.add_argument(
         "--output",
         default=str(DEFAULT_LOGIC_FILE),
-        help="Path to spx-horizon-logic.conf (default: %(default)s)",
+        help="Path to 000-spx-horizon-logic.conf (default: %(default)s)",
     )
     parser.add_argument(
         "--dry-run",
