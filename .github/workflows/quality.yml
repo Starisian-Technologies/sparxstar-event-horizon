@@ -33,11 +33,15 @@ jobs:
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
 
-          # 4. Deploy the shared CI server block (defines varnish_upstream stub)
+          # 4. Deploy the shared CI server block (defines varnish_backend stub)
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
 
           # Ensure the default site is enabled
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+          # 5. Create worker-secret stub (no real secret needed for syntax/CI tests)
+          sudo mkdir -p /etc/nginx/secrets
+          sudo touch /etc/nginx/secrets/worker-secret.conf
 
       - name: Validate Nginx Syntax
         run: sudo nginx -t
@@ -67,14 +71,18 @@ jobs:
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
+          # Create worker-secret stub (no real secret needed for CI attack tests)
+          sudo mkdir -p /etc/nginx/secrets
+          sudo touch /etc/nginx/secrets/worker-secret.conf
+
       - name: Enable Firewall for CI Test Runner
         run: |
           # The repo config whitelists 127.0.0.1 for local admin use, but CI
           # connects from 127.0.0.1 — so the firewall would be bypassed and
-          # attack tests would never see a block. Remove the localhost bypass
-          # from the deployed copy only; the repo file is not changed.
-          sudo sed -i '/^\s*127\.0\.0\.1\s\+0;/d' /etc/nginx/conf.d/000-spx-horizon-logic.conf
-          sudo sed -i '/^\s*::1\s\+0;/d' /etc/nginx/conf.d/000-spx-horizon-logic.conf
+          # attack tests would never see a block. Remove only the bypass entries
+          # from $spx_firewall_active (identified by the spx-admin-bypass marker)
+          # so other per-IP allowlists (e.g. $spx_empty_ua_is_bad) are preserved.
+          sudo sed -i '/# spx-admin-bypass/d' /etc/nginx/conf.d/000-spx-horizon-logic.conf
 
       - name: Validate & Start Nginx
         run: |
