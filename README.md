@@ -207,7 +207,7 @@ Track these metrics to detect and respond to attacks early:
 | Metric | Log source | Alert threshold |
 |---|---|---|
 | `444` response rate spike | `/var/log/nginx/spx-blocked.log` | Sudden increase vs baseline |
-| Rate-limit triggers (`429`) | access log | High frequency from single IP |
+| Rate-limit triggers (`444`) | access log | High frequency from single IP |
 | Honeypot hits (`/spx-trap`) | `/var/log/nginx/spx-blocked.log` | Any hit = automated scanner |
 | Unusual geo traffic | access log + CF-IPCountry | New country codes at scale |
 
