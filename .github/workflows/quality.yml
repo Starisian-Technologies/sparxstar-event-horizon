@@ -43,6 +43,10 @@ jobs:
           sudo mkdir -p /etc/nginx/secrets
           sudo touch /etc/nginx/secrets/worker-secret.conf
 
+          # 6. Deploy high-risk geo map (operators customise this file)
+          sudo mkdir -p /etc/nginx/maps
+          sudo cp maps/high-risk-geo.map /etc/nginx/maps/high-risk-geo.map
+
       - name: Validate Nginx Syntax
         run: sudo nginx -t
 
@@ -74,6 +78,10 @@ jobs:
           # Create worker-secret stub (no real secret needed for CI attack tests)
           sudo mkdir -p /etc/nginx/secrets
           sudo touch /etc/nginx/secrets/worker-secret.conf
+
+          # Deploy high-risk geo map
+          sudo mkdir -p /etc/nginx/maps
+          sudo cp maps/high-risk-geo.map /etc/nginx/maps/high-risk-geo.map
 
       - name: Enable Firewall for CI Test Runner
         run: |
