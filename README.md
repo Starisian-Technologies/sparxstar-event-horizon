@@ -67,6 +67,7 @@ cd sparxstar-event-horizon
 
 # Copy configuration (adjust paths if your distro differs)
 sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
+sudo mkdir -p /etc/nginx/snippets
 sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
 sudo mkdir -p /etc/nginx/maps
 sudo cp maps/high-risk-geo.map /etc/nginx/maps/
