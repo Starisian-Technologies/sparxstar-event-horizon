@@ -98,13 +98,32 @@ Ensure `/etc/nginx/conf.d/*.conf` is included in the `http {}` block of `/etc/ng
 *Most default Nginx installs already have this line — **do not add a second include pointing to the repository clone**.*
 
 #### B. Server Protection (sites-enabled/yoursite)
-Include the rules snippet inside your `server {}` block.
+Include the rules snippet inside your `server {}` block.  
+**`spx-horizon-rules.conf` proxies to two named upstreams** that you must define in your Nginx configuration (either in `nginx.conf` or a `conf.d/` include loaded before the server block):
+
+| Upstream name | Role | Example target |
+|---|---|---|
+| `varnish_backend` | Main application proxy (HTML, WP, APIs) | `127.0.0.1:6081` |
+| `tus_node_backend` | TUS resumable-upload backend | `127.0.0.1:1080` |
+
+> **If you do not run Varnish**, point `varnish_backend` directly at your application server (e.g. `127.0.0.1:8080` for a Node app, or `unix:/run/php/php8.2-fpm.sock` + `fastcgi_pass` if serving PHP directly). Rename as needed, but keep the upstream names matching what is referenced in `spx-horizon-rules.conf`.
 
 ```nginx
+# In nginx.conf http{} or a conf.d include — BEFORE your server block
+upstream varnish_backend {
+    server 127.0.0.1:6081;  # Replace with your application backend
+    keepalive 32;
+}
+
+upstream tus_node_backend {
+    server 127.0.0.1:1080;  # Replace with your TUS upload service
+    keepalive 8;
+}
+
 server {
     listen 443 ssl http2;
     server_name example.com;
-    
+
     # [!] INCLUDE EVENT HORIZON RULES HERE
     include /etc/nginx/snippets/spx-horizon-rules.conf;
 
