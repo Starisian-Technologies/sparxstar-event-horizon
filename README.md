@@ -106,7 +106,7 @@ Include the rules snippet inside your `server {}` block.
 | `varnish_backend` | Main application proxy (HTML, WP, APIs) | `127.0.0.1:6081` |
 | `tus_node_backend` | TUS resumable-upload backend | `127.0.0.1:1080` |
 
-> **If you do not run Varnish**, point `varnish_backend` directly at your application server (e.g. `127.0.0.1:8080` for a Node app, or `unix:/run/php/php8.2-fpm.sock` + `fastcgi_pass` if serving PHP directly). Rename as needed, but keep the upstream names matching what is referenced in `spx-horizon-rules.conf`.
+> **If you do not run Varnish**, point `varnish_backend` at an HTTP-capable application server (e.g. `127.0.0.1:8080` for a Node app, or `127.0.0.1:8000` for PHP served via Nginx/Apache over HTTP). If you are using PHP-FPM directly over FastCGI, configure a separate `location` with `fastcgi_pass` to the PHP-FPM socket or port — do **not** reuse the `varnish_backend` HTTP upstream for that. The full SPARXSTAR stack routes Cloudflare → Nginx (Event Horizon) → Varnish → Apache → PHP-FPM; `varnish_backend` is always an HTTP target in this topology.
 
 ```nginx
 # In nginx.conf http{} or a conf.d include — BEFORE your server block
