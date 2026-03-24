@@ -95,3 +95,32 @@ def test_static_asset_bypass():
             assert r.status_code in [200, 404]
     except ConnectionError:
         pytest.fail("Static asset connection was dropped or rate-limited — should be allowed.")
+
+
+def test_bad_content_disposition_block():
+    """Ensure a Content-Disposition header carrying a .php filename is ghosted.
+    This is the 'Bogus Graphics Exploit' — an attacker sends a crafted header
+    to trick the server into treating an image upload as executable PHP.
+    The $spx_bad_content_disposition map now routes this through $spx_base_threat
+    so it also honours the emergency bypass."""
+    headers = {"Content-Disposition": 'attachment; filename="shell.php"'}
+    with pytest.raises(ConnectionError):
+        requests.get(BASE_URL, headers=headers, timeout=2)
+
+
+def test_threat_signal_headers_injected():
+    """Verify X-SPX threat signal headers are propagated on every proxied request.
+    The stub backend at /echo-headers reflects the received X-SPX-* request
+    headers back as response headers so the test can inspect them.
+    Clean traffic should produce Threat=0, Risk=0, Bot=0, Reason=empty."""
+    r = requests.get(f"{BASE_URL}/echo-headers", timeout=2)
+    assert r.status_code == 200
+    # Threat and Risk must be 0 for clean traffic
+    assert r.headers.get("X-SPX-Threat-Echo") == "0"
+    assert r.headers.get("X-SPX-Risk-Echo") == "0"
+    # Bot signal must be 0 for a legitimate user-agent
+    assert r.headers.get("X-SPX-Bot-Echo") == "0"
+    # Reason must be empty for clean traffic: all rflag maps return "" when their
+    # signal is 0, so the concatenated header value is "" — not a bare "|".
+    # strip("|") is a safety guard; it is not expected to be needed here.
+    assert r.headers.get("X-SPX-Reason-Echo", "").strip("|") == ""

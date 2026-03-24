@@ -32,6 +32,7 @@ jobs:
           # 3. Create snippets directory and copy Rules file
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
 
           # 4. Deploy the shared CI server block (defines varnish_backend stub)
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
@@ -71,6 +72,7 @@ jobs:
           sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
 
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
