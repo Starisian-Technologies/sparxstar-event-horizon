@@ -56,8 +56,9 @@ sparxstar-event-horizon/
 ├── maps/
 │   └── high-risk-geo.map               # Editable high-risk country code list
 ├── snippets/
-│   ├── spx-horizon-rules.conf          # Server block rules — locations, rate limits, blocking
-│   └── spx-dynamic-proxy-headers.conf  # X-SPX-* and X-SPARXSTAR-* headers (dynamic locations only)
+│   ├── spx-horizon-rules.conf          # Firewall rules — blocking locations and gate checks only
+│   ├── spx-security-headers.conf       # Modular add_header security headers (include per-location as needed)
+│   └── spx-dynamic-proxy-headers.conf  # X-SPX-* and X-SPARXSTAR-* proxy headers (include per proxied location)
 ├── scripts/
 │   ├── update_cloudflare.py            # Refreshes Cloudflare IP trust list
 │   └── update_bots.py                  # Refreshes bad-bot User-Agent map
@@ -76,7 +77,8 @@ sparxstar-event-horizon/
 │   └── high-risk-geo.map
 ├── snippets/
 │   ├── spx-horizon-rules.conf          # include inside your server{} block
-│   └── spx-dynamic-proxy-headers.conf  # included automatically by spx-horizon-rules.conf
+│   ├── spx-security-headers.conf       # include per-location when you add custom add_header
+│   └── spx-dynamic-proxy-headers.conf  # include per proxied location (X-SPX-* threat headers)
 ├── scripts/
 │   ├── update_cloudflare.py
 │   └── update_bots.py
@@ -92,11 +94,11 @@ sparxstar-event-horizon/
 
 Before running `nginx -t`:
 
-- [ ] All five file-copy commands in Step 1 completed (including `spx-dynamic-proxy-headers.conf` and `spx-cloudflare-trust.conf`)
+- [ ] All file-copy commands in Step 1 completed (including `spx-security-headers.conf`, `spx-dynamic-proxy-headers.conf` and `spx-cloudflare-trust.conf`)
 - [ ] `/etc/nginx/secrets/worker-secret.conf` exists (Step 5) — Nginx **will not start** without it
 - [ ] `/etc/nginx/maps/high-risk-geo.map` exists (copied in Step 1) — Nginx **will not start** without it
 - [ ] Your admin/egress IP is in the Emergency Bypass map (Step 4)
-- [ ] `varnish_backend` and `tus_node_backend` upstreams are defined before your `server {}` block (Step 3)
+- [ ] `varnish_backend` and `tus_node_backend` upstreams are defined in your server block (Step 3)
 
 ---
 
@@ -115,9 +117,10 @@ sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
 # Cloudflare RealIP trust list (http context)
 sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
 
-# Server rules and dynamic proxy headers (snippets)
+# Server rules, security headers, and dynamic proxy headers (snippets)
 sudo mkdir -p /etc/nginx/snippets
 sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
+sudo cp snippets/spx-security-headers.conf /etc/nginx/snippets/
 sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
 
 # High-risk geo map (required at startup — Nginx exits if this file is missing)
@@ -163,9 +166,11 @@ sudo python3 /etc/nginx/scripts/update_bots.py \
 
 Ensure `/etc/nginx/conf.d/*.conf` is included in the `http {}` block of `/etc/nginx/nginx.conf`. Most default Nginx installs already have this line — **do not add a second include pointing to the repository clone directory**.
 
-#### B. Upstream Definitions
+#### B. Upstream Definitions and Runtime Configuration
 
-`spx-horizon-rules.conf` proxies traffic to two named upstreams. You must define these **before** your `server {}` block (in `nginx.conf` or an earlier `conf.d/` file):
+`spx-horizon-rules.conf` contains **only firewall logic** (blocking + gate checks). It does not define `proxy_pass`, rate limit enforcement, or `proxy_set_header` directives — those are runtime configuration that you define in your own server block.
+
+You must define your upstreams **before** your `server {}` block (in `nginx.conf` or an earlier `conf.d/` file):
 
 | Upstream name | Purpose | Example target |
 |---|---|---|
@@ -174,7 +179,7 @@ Ensure `/etc/nginx/conf.d/*.conf` is included in the `http {}` block of `/etc/ng
 
 > **Not running Varnish?** Point `varnish_backend` directly at your application server (Apache on `8080`, Node on `3000`, etc.). The name `varnish_backend` is historical — it accepts any HTTP upstream. If you use PHP-FPM over FastCGI, add a separate `location` block with `fastcgi_pass` and do not reuse this upstream for it.
 
-> **Not running TUS uploads?** Define the upstream anyway pointing at `127.0.0.1:1080` — if the `/files/` path is never hit, the upstream is never contacted. Nginx requires all named upstreams referenced in the config to be defined at startup.
+> **Not running TUS uploads?** Define the upstream anyway — if the `/files/` path is never hit, the upstream is never contacted. Nginx requires all referenced upstreams to be defined at startup.
 
 ```nginx
 # In nginx.conf http{} or a conf.d include — loaded BEFORE your server block
@@ -192,12 +197,79 @@ server {
     listen 443 ssl http2;
     server_name example.com;
 
-    # Include Event Horizon server rules
+    # 1. Include firewall rules (detection, blocking, and gate checks only)
     include /etc/nginx/snippets/spx-horizon-rules.conf;
+
+    # 2. Define your runtime pass-through locations.
+    #    Add proxy_pass, rate limits, and the dynamic proxy headers include here.
+    #    spx-horizon-rules.conf already defines the firewall gate for each path
+    #    (if $spx_final_decision { return 444; }) — add your runtime config alongside.
+
+    # Main application proxy
+    location / {
+        limit_conn spx_conn 50;
+        limit_req  zone=spx_req burst=40 nodelay;
+        include /etc/nginx/snippets/spx-dynamic-proxy-headers.conf;
+        proxy_pass http://varnish_backend;
+        proxy_http_version 1.1;
+    }
+
+    # WordPress login — tighter rate limit
+    location = /wp-login.php {
+        limit_req zone=spx_wp_login burst=3 nodelay;
+        include /etc/nginx/snippets/spx-dynamic-proxy-headers.conf;
+        proxy_pass http://varnish_backend;
+        proxy_http_version 1.1;
+    }
+
+    # WordPress admin
+    location /wp-admin/ {
+        limit_req zone=spx_general burst=20 nodelay;
+        include /etc/nginx/snippets/spx-dynamic-proxy-headers.conf;
+        proxy_pass http://varnish_backend;
+        proxy_http_version 1.1;
+    }
+
+    # GraphQL — POST only (already enforced by the firewall gate)
+    location /graphql {
+        limit_req zone=spx_graphql burst=10 nodelay;
+        include /etc/nginx/snippets/spx-dynamic-proxy-headers.conf;
+        proxy_pass http://varnish_backend;
+        proxy_http_version 1.1;
+    }
+
+    # TUS resumable uploads
+    location /files/ {
+        proxy_set_header Tus-Resumable   $http_tus_resumable;
+        proxy_set_header Upload-Offset   $http_upload_offset;
+        proxy_set_header Upload-Length   $http_upload_length;
+        proxy_set_header Upload-Metadata $http_upload_metadata;
+        proxy_pass http://tus_node_backend;
+        proxy_http_version 1.1;
+    }
+
+    # Standard proxy headers (X-Real-IP, X-Forwarded-For, etc.)
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Port  $server_port;
+    proxy_set_header X-Request-ID      $request_id;
+    proxy_set_header Connection        "";
 
     # Your SSL settings, etc.
 }
 ```
+
+> **Security header inheritance:** `spx-horizon-rules.conf` applies `spx-security-headers.conf` at the server context. Any location block that defines its **own** `add_header` directive will cause Nginx to silently drop the server-level security headers for responses from that location. Re-include the file inside those blocks:
+>
+> ```nginx
+> location /custom {
+>     include /etc/nginx/snippets/spx-security-headers.conf;  # keep security headers
+>     add_header X-My-Header "value" always;
+>     proxy_pass http://varnish_backend;
+> }
+> ```
 
 #### C. robots.txt — Honeypot registration
 
