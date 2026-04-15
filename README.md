@@ -36,6 +36,7 @@ All threat evaluation runs *before* Nginx's regex location matching, so every re
 - **Bot Trap (Honeypot):** The `/spx-trap` endpoint is never referenced by legitimate site code. Any request to this path is assumed to be automated scanning or bot activity, immediately ghosted.
 - **Configurable Geo Amplifier:** High-risk country codes live in a separate map file operators can edit without touching the core config.
 - **Automated Intelligence:** Python scripts to auto-update bot signatures and Cloudflare IP ranges.
+- **Deployment-Portable Core:** Event Horizon does not enforce runtime performance tuning (buffer/timeout/keepalive knobs). Keep those in your platform adapter or base Nginx profile.
 
 ## 📂 Project Structure
 

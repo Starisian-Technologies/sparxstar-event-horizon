@@ -55,6 +55,12 @@ def test_sql_injection_block():
         requests.get(f"{BASE_URL}/?id=1' UNION SELECT user,password", timeout=2)
 
 
+def test_path_traversal_block():
+    """Ensure path traversal payloads are ghosted (return 444)."""
+    with pytest.raises(ConnectionError):
+        requests.get(f"{BASE_URL}/?path=../../etc/passwd", timeout=2)
+
+
 def test_bad_bot_block():
     """Ensure known bad User-Agents are ghosted (return 444)."""
     headers = {"User-Agent": "masscan"}
@@ -124,3 +130,42 @@ def test_threat_signal_headers_injected():
     # signal is 0, so the concatenated header value is "" — not a bare "|".
     # strip("|") is a safety guard; it is not expected to be needed here.
     assert r.headers.get("X-SPX-Reason-Echo", "").strip("|") == ""
+
+
+def test_untrusted_sparxstar_headers_are_stripped():
+    """Untrusted client-supplied X-SPARXSTAR-* headers must be stripped."""
+    r = requests.get(
+        f"{BASE_URL}/echo-headers",
+        headers={
+            "X-SPARXSTAR-User": "attacker",
+            "X-SPARXSTAR-Session": "fake-session",
+            "X-SPARXSTAR-Roles": "admin",
+            "X-SPARXSTAR-AuthLevel": "root",
+        },
+        timeout=2,
+    )
+    assert r.status_code == 200
+    assert r.headers.get("X-SPARXSTAR-User-Echo", "") == ""
+    assert r.headers.get("X-SPARXSTAR-Session-Echo", "") == ""
+    assert r.headers.get("X-SPARXSTAR-Roles-Echo", "") == ""
+    assert r.headers.get("X-SPARXSTAR-AuthLevel-Echo", "") == ""
+
+
+def test_trusted_worker_headers_are_forwarded():
+    """Trusted worker secret path should preserve SPARXSTAR identity headers."""
+    r = requests.get(
+        f"{BASE_URL}/echo-headers",
+        headers={
+            "X-Worker-Origin-Secret": "test-worker-secret",
+            "X-SPARXSTAR-User": "worker-user",
+            "X-SPARXSTAR-Session": "worker-session",
+            "X-SPARXSTAR-Roles": "member",
+            "X-SPARXSTAR-AuthLevel": "2",
+        },
+        timeout=2,
+    )
+    assert r.status_code == 200
+    assert r.headers.get("X-SPARXSTAR-User-Echo") == "worker-user"
+    assert r.headers.get("X-SPARXSTAR-Session-Echo") == "worker-session"
+    assert r.headers.get("X-SPARXSTAR-Roles-Echo") == "member"
+    assert r.headers.get("X-SPARXSTAR-AuthLevel-Echo") == "2"
