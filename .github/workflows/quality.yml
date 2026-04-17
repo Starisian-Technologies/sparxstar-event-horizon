@@ -32,11 +32,13 @@ jobs:
           # 2. Copy Cloudflare trust file to http context directory
           sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
 
-          # 3. Create snippets directory and copy Rules file
+          # 3. Create snippets directory and copy all snippet files
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
           sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
           sudo cp snippets/spx-security-headers.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-firewall-gate.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-static-assets-runtime.conf /etc/nginx/snippets/
 
           # 4. Deploy the shared CI server block (defines varnish_backend stub)
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
@@ -81,6 +83,8 @@ jobs:
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
           sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
           sudo cp snippets/spx-security-headers.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-firewall-gate.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-static-assets-runtime.conf /etc/nginx/snippets/
 
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
