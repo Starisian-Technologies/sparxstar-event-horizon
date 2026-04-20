@@ -621,4 +621,4 @@ sudo chmod 600 /etc/nginx/secrets/worker-secret.conf
 
 ## 📝 License
 
-MIT License — © 2026 Starisian Technologies. See [LICENSE](LICENSE) for full terms.
+Proprietary — © 2026 Starisian Technologies (Max Barrett). All Rights Reserved. See [LICENSE](LICENSE) for full terms.
