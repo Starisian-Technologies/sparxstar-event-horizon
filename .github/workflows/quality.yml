@@ -21,6 +21,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y nginx
 
+      - name: Validate Python Script Syntax
+        run: python3 -m compileall scripts tests
+
       - name: Deploy SPARXSTAR Event Horizon Config
         run: |
           # 1. Copy Logic file to http context directory (000- prefix ensures it loads first)
@@ -29,10 +32,13 @@ jobs:
           # 2. Copy Cloudflare trust file to http context directory
           sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
 
-          # 3. Create snippets directory and copy Rules file
+          # 3. Create snippets directory and copy all snippet files
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
           sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-security-headers.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-firewall-gate.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-static-assets-runtime.conf /etc/nginx/snippets/
 
           # 4. Deploy the shared CI server block (defines varnish_backend stub)
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
@@ -42,7 +48,7 @@ jobs:
 
           # 5. Create worker-secret stub (no real secret needed for syntax/CI tests)
           sudo mkdir -p /etc/nginx/secrets
-          sudo touch /etc/nginx/secrets/worker-secret.conf
+          echo '"test-worker-secret" 1;' | sudo tee /etc/nginx/secrets/worker-secret.conf > /dev/null
 
           # 6. Deploy high-risk geo map (operators customise this file)
           sudo mkdir -p /etc/nginx/maps
@@ -66,6 +72,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y nginx
 
+      - name: Validate Python Script Syntax
+        run: python3 -m compileall scripts tests
+
       - name: Deploy SPARXSTAR Event Horizon Config
         run: |
           sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
@@ -73,13 +82,16 @@ jobs:
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
           sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-security-headers.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-firewall-gate.conf /etc/nginx/snippets/
+          sudo cp snippets/spx-static-assets-runtime.conf /etc/nginx/snippets/
 
           sudo cp tests/nginx-test-server.conf /etc/nginx/sites-available/default
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
           # Create worker-secret stub (no real secret needed for CI attack tests)
           sudo mkdir -p /etc/nginx/secrets
-          sudo touch /etc/nginx/secrets/worker-secret.conf
+          echo '"test-worker-secret" 1;' | sudo tee /etc/nginx/secrets/worker-secret.conf > /dev/null
 
           # Deploy high-risk geo map
           sudo mkdir -p /etc/nginx/maps
