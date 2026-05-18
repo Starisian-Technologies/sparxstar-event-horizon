@@ -36,23 +36,10 @@ jobs:
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
 
-          # 4. Write a minimal CI server block that references only files deployed in this job
-          sudo tee /etc/nginx/sites-available/default > /dev/null <<'EOF'
-          server {
-              listen 80 default_server;
-              listen [::]:80 default_server;
-              server_name _;
-
-              root /var/www/html;
-              index index.html index.htm;
-
-              location / {
-                  try_files $uri $uri/ =404;
-              }
-          }
-          EOF
-
-          # Ensure the default site is enabled
+          # 4. Deploy the canonical operator example as the CI server block
+          #    (same file used by firewall-test — single source of truth for
+          #    both CI syntax validation and operator documentation).
+          sudo cp docs/operator-example-server-block.conf /etc/nginx/sites-available/default
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
           # 5. Create worker-secret stub (no real secret needed for syntax/CI tests)

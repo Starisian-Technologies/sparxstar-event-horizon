@@ -92,7 +92,7 @@ sparxstar-event-horizon/
 
 Before running `nginx -t`:
 
-- [ ] All file-copy commands in Step 1 completed (including all five snippet files and `spx-cloudflare-trust.conf`)
+- [ ] All file-copy commands in Step 1 completed (`spx-dynamic-proxy-headers.conf` snippet and `spx-cloudflare-trust.conf`)
 - [ ] `/etc/nginx/secrets/worker-secret.conf` exists (Step 5) — Nginx **will not start** without it
 - [ ] `/etc/nginx/maps/high-risk-geo.map` exists (copied in Step 1) — Nginx **will not start** without it
 - [ ] Your admin/egress IP is in the Emergency Bypass map (Step 4)
