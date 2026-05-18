@@ -55,17 +55,14 @@ sparxstar-event-horizon/
 │   └── spx-cloudflare-trust.conf       # RealIP trust list (refresh with update_cloudflare.py)
 ├── maps/
 │   └── high-risk-geo.map               # Editable high-risk country code list
+├── docs/
+│   └── operator-example-server-block.conf # Operator reference (CI also uses this file)
 ├── snippets/
-│   ├── spx-horizon-rules.conf          # Firewall rules — pure blocking locations only
-│   ├── spx-firewall-gate.conf          # Reusable gate check — include in each operator location
-│   ├── spx-security-headers.conf       # Modular security response headers
 │   ├── spx-dynamic-proxy-headers.conf  # X-SPX-* and X-SPARXSTAR-* proxy headers (per proxied location)
-│   └── spx-static-assets-runtime.conf  # Operator stub — add proxy_pass for static asset bypass
 ├── scripts/
 │   ├── update_cloudflare.py            # Refreshes Cloudflare IP trust list
 │   └── update_bots.py                  # Refreshes bad-bot User-Agent map
 └── tests/
-    ├── nginx-test-server.conf          # CI test server + annotated operator reference config
     └── test_firewall.py                # Attack simulation test suite
 ```
 
@@ -79,11 +76,7 @@ sparxstar-event-horizon/
 ├── maps/
 │   └── high-risk-geo.map
 ├── snippets/
-│   ├── spx-horizon-rules.conf          # include inside your server{} block
-│   ├── spx-firewall-gate.conf          # include at the top of each proxied location
-│   ├── spx-security-headers.conf       # include per-location when you add custom add_header
 │   ├── spx-dynamic-proxy-headers.conf  # include per proxied location (X-SPX-* threat headers)
-│   └── spx-static-assets-runtime.conf  # populate with your proxy_pass for static assets
 ├── scripts/
 │   ├── update_cloudflare.py
 │   └── update_bots.py
@@ -122,13 +115,9 @@ sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
 # Cloudflare RealIP trust list (http context)
 sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
 
-# Server rules and all snippet files
+# Shipped snippet file
 sudo mkdir -p /etc/nginx/snippets
-sudo cp snippets/spx-horizon-rules.conf /etc/nginx/snippets/
-sudo cp snippets/spx-firewall-gate.conf /etc/nginx/snippets/
-sudo cp snippets/spx-security-headers.conf /etc/nginx/snippets/
 sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
-sudo cp snippets/spx-static-assets-runtime.conf /etc/nginx/snippets/
 
 # High-risk geo map (required at startup — Nginx exits if this file is missing)
 sudo mkdir -p /etc/nginx/maps
@@ -175,12 +164,10 @@ Ensure `/etc/nginx/conf.d/*.conf` is included in the `http {}` block of `/etc/ng
 
 #### B. Upstream Definitions and Runtime Configuration
 
-`spx-horizon-rules.conf` contains **only firewall logic** — pure blocking locations (`return 444`) and the health check. It defines **no** `proxy_pass`, `limit_req`, `limit_conn`, or gateway-only location blocks. Your server block owns all of those.
-
-Each proxied `location` block you define must include `spx-firewall-gate.conf` to enforce the firewall decision before forwarding the request upstream:
+Event Horizon no longer ships runtime server-block rules. Define runtime locations in your own server block (or start from `docs/operator-example-server-block.conf`), and put this line at the top of each proxied location:
 
 ```nginx
-include /etc/nginx/snippets/spx-firewall-gate.conf;  # if ($spx_final_decision) { return 444; }
+if ($spx_final_decision) { return 444; }
 ```
 
 Define your upstreams **before** your `server {}` block:
@@ -221,17 +208,12 @@ server {
     proxy_set_header Connection        "";
     proxy_http_version 1.1;
 
-    # Firewall — pure blocking locations only (no proxy_pass inside)
-    include /etc/nginx/snippets/spx-horizon-rules.conf;
+    # Firewall enforcement is inlined in each proxied location:
+    #     if ($spx_final_decision) { return 444; }
 
     # ── Operator runtime locations ───────────────────────────────────
-    # Each location includes spx-firewall-gate.conf first, then adds
+    # Each location runs the inlined firewall gate first, then adds
     # rate limits, dynamic proxy headers, and proxy_pass.
-
-    # Static asset bypass — bypasses threat map evaluation (no gate).
-    # Also populate /etc/nginx/snippets/spx-static-assets-runtime.conf
-    # with proxy_pass to serve assets from your upstream.
-    # Alternatively, configure it directly here in its own location.
 
     # ACME challenge and well-known pass-through.
     location ^~ /.well-known/ {
@@ -240,7 +222,7 @@ server {
 
     # WordPress login.
     location = /wp-login.php {
-        include /etc/nginx/snippets/spx-firewall-gate.conf;
+        if ($spx_final_decision) { return 444; }
         limit_req zone=spx_wp_login burst=3 nodelay;
         include /etc/nginx/snippets/spx-dynamic-proxy-headers.conf;
         proxy_pass http://varnish_backend;
@@ -248,7 +230,7 @@ server {
 
     # WordPress admin.
     location /wp-admin/ {
-        include /etc/nginx/snippets/spx-firewall-gate.conf;
+        if ($spx_final_decision) { return 444; }
         limit_req zone=spx_general burst=20 nodelay;
         include /etc/nginx/snippets/spx-dynamic-proxy-headers.conf;
         proxy_pass http://varnish_backend;
@@ -256,7 +238,7 @@ server {
 
     # GraphQL — POST and OPTIONS only (GET exposes params in logs).
     location /graphql {
-        include /etc/nginx/snippets/spx-firewall-gate.conf;
+        if ($spx_final_decision) { return 444; }
         if ($request_method !~ ^(POST|OPTIONS)$) { return 444; }
         limit_req zone=spx_graphql burst=10 nodelay;
         include /etc/nginx/snippets/spx-dynamic-proxy-headers.conf;
@@ -266,7 +248,7 @@ server {
     # TUS resumable uploads. Add TUS client egress IPs to the
     # $spx_empty_ua_is_bad allowlist — TUS clients often send no UA.
     location /files/ {
-        include /etc/nginx/snippets/spx-firewall-gate.conf;
+        if ($spx_final_decision) { return 444; }
         proxy_set_header Tus-Resumable   $http_tus_resumable;
         proxy_set_header Upload-Offset   $http_upload_offset;
         proxy_set_header Upload-Length   $http_upload_length;
@@ -276,7 +258,7 @@ server {
 
     # Main catch-all. Enforce method guard, then firewall gate, then proxy.
     location / {
-        include /etc/nginx/snippets/spx-firewall-gate.conf;
+        if ($spx_final_decision) { return 444; }
         if ($request_method !~ ^(GET|POST|HEAD|PUT|PATCH|DELETE|OPTIONS)$) { return 444; }
         if ($request_method = OPTIONS) { return 204; }
         limit_conn spx_conn 50;
@@ -289,17 +271,9 @@ server {
 }
 ```
 
-> **Security header inheritance:** `spx-horizon-rules.conf` applies `spx-security-headers.conf` at the server context. Any location block that defines its **own** `add_header` directive causes Nginx to silently discard the server-level headers for that location. Re-include the file inside those blocks:
->
-> ```nginx
-> location /custom {
->     include /etc/nginx/snippets/spx-security-headers.conf;
->     add_header X-My-Header "value" always;
->     proxy_pass http://varnish_backend;
-> }
-> ```
+> **Security header ownership:** Event Horizon does not ship response security headers. Keep your baseline `add_header` policy in platform config, and remember Nginx header inheritance rules when adding per-location headers.
 
-> **For the full annotated operator reference** — including the CI test harness — see [`tests/nginx-test-server.conf`](tests/nginx-test-server.conf).
+> **For the full annotated operator reference** — including the CI test harness — see [`docs/operator-example-server-block.conf`](docs/operator-example-server-block.conf).
 
 #### C. robots.txt — Honeypot registration
 
@@ -514,7 +488,7 @@ After editing: `sudo nginx -t && sudo systemctl reload nginx`
 |---|---|---|
 | `/health` | Returns `200 OK` | Only accessible from IPs in the `$spx_firewall_active` bypass list. Load balancers must connect from a bypass-listed IP or this returns `444`. |
 | `/spx-trap` | Immediately ghosted (`444`) | Honeypot. Add `Disallow: /spx-trap` to `robots.txt`. Any hit = automated scanner. |
-| `/files/` | Operator-defined | TUS resumable upload endpoint. Define in your server block with `proxy_pass http://tus_node_backend;` and `include spx-firewall-gate.conf;`. TUS client IPs must be in the `$spx_empty_ua_is_bad` allowlist (no UA by spec). |
+| `/files/` | Operator-defined | TUS resumable upload endpoint. Define in your server block with `if ($spx_final_decision) { return 444; }` and `proxy_pass http://tus_node_backend;`. TUS client IPs must be in the `$spx_empty_ua_is_bad` allowlist (no UA by spec). |
 | `/.well-known/` | Operator-defined | ACME challenge pass-through. Define in your server block with `location ^~ /.well-known/ { proxy_pass ...; }` — the `^~` prefix wins over extension-based lockdown regex. |
 
 ---
