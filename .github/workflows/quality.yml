@@ -36,8 +36,23 @@ jobs:
           sudo mkdir -p /etc/nginx/snippets
           sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
 
-          # 4. Deploy the operator example as the CI test server block
-          sudo cp docs/operator-example-server-block.conf /etc/nginx/sites-available/default
+          # 4. Write a minimal CI server block that references only files deployed in this job
+          sudo tee /etc/nginx/sites-available/default > /dev/null <<'EOF'
+          server {
+              listen 80 default_server;
+              listen [::]:80 default_server;
+              server_name _;
+
+              root /var/www/html;
+              index index.html index.htm;
+
+              include /etc/nginx/snippets/spx-dynamic-proxy-headers.conf;
+
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+          }
+          EOF
 
           # Ensure the default site is enabled
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
