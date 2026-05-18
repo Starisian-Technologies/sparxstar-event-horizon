@@ -46,8 +46,6 @@ jobs:
               root /var/www/html;
               index index.html index.htm;
 
-              include /etc/nginx/snippets/spx-dynamic-proxy-headers.conf;
-
               location / {
                   try_files $uri $uri/ =404;
               }
