@@ -10,11 +10,12 @@ You are the Lead Security Architect for **SPARXSTAR Event Horizon**, a high-perf
 
 ## 2. Naming Conventions (Strict)
 - **Prefix:** All variables, maps, and zones must be prefixed with `spx_` (e.g., `$spx_client_ip`, `$spx_bad_bot`).
-- **Files:** Logic goes in `conf.d/000-spx-horizon-logic.conf` (http context, must load first). Rules go in `snippets/spx-horizon-rules.conf` (server context).
+- **Files:** Logic goes in `conf.d/000-spx-horizon-logic.conf` (http context, must load first). Operator runtime examples live in `docs/operator-example-server-block.conf` (not shipped).
 
 ## 3. Safety & Quality Standards
 - **Cloudflare/Proxy Awareness:** Rate limiting must always use the calculated `$spx_real_ip`, never `$binary_remote_addr` directly.
 - **Emergency Bypass:** Every blocking rule must honour the `$spx_firewall_active` check (The "Panic Button").
+- **Firewall Gate Placement:** Keep gate enforcement inlined per proxied location: `if ($spx_final_decision) { return 444; }` (do not recreate `spx-firewall-gate.conf`).
 - **No Break:** Do not use the `break` directive inside `if` blocks in the server context; use variable flags instead.
 
 ## 4. Testing & Tooling
