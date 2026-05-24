@@ -51,7 +51,7 @@ All threat evaluation runs *before* Nginx's regex location matching. Every reque
 ```text
 sparxstar-event-horizon/
 ├── conf.d/
-│   ├── 000-spx-horizon-logic.conf      # Logic Core — maps, zones, aggregation
+│   ├── 000-spx-horizon-logic.conf      # Logic Core — maps and aggregation
 │   └── spx-cloudflare-trust.conf       # RealIP trust list (refresh with update_cloudflare.py)
 ├── maps/
 │   └── high-risk-geo.map               # Editable high-risk country code list
