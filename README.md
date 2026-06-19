@@ -1,7 +1,7 @@
 
 <img width="1280" height="640" alt="sparxstar-event-horizon" src="https://github.com/user-attachments/assets/16f804e4-2bc9-4b0a-a3fc-eeb675529e1d" />
 
-# SPARXSTAR Event Horizon v2.0
+# SPARXSTAR Event Horizon v2.1
 
 > **"Nothing malicious escapes."**
 
@@ -93,7 +93,7 @@ sparxstar-event-horizon/
 
 Before running `nginx -t`:
 
-- [ ] All file-copy commands in Step 1 completed (including all five snippet files and `spx-cloudflare-trust.conf`)
+- [ ] All file-copy commands in Step 1 completed (including `spx-dynamic-proxy-headers.conf` and `spx-cloudflare-trust.conf`)
 - [ ] `/etc/nginx/secrets/worker-secret.conf` exists (Step 5) — Nginx **will not start** without it
 - [ ] `/etc/nginx/maps/high-risk-geo.map` exists (copied in Step 1) — Nginx **will not start** without it
 - [ ] Your admin/egress IP is in the Emergency Bypass map (Step 4)
@@ -111,18 +111,18 @@ git clone https://github.com/Starisian-Technologies/sparxstar-event-horizon.git
 cd sparxstar-event-horizon
 
 # Logic Core (http context — must load first)
-sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
+sudo cp nginx/conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
 
 # Cloudflare RealIP trust list (http context)
-sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
+sudo cp nginx/conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
 
 # Shipped snippet file
 sudo mkdir -p /etc/nginx/snippets
-sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
+sudo cp nginx/snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
 
 # High-risk geo map (required at startup — Nginx exits if this file is missing)
 sudo mkdir -p /etc/nginx/maps
-sudo cp maps/high-risk-geo.map /etc/nginx/maps/
+sudo cp nginx/maps/spx-high-risk-geo.map /etc/nginx/maps/high-risk-geo.map
 
 # Update scripts
 sudo mkdir -p /etc/nginx/scripts
@@ -596,4 +596,4 @@ sudo chmod 600 /etc/nginx/secrets/worker-secret.conf
 
 ## 📝 License
 
-MIT License — © 2026 Starisian Technologies. See [LICENSE](LICENSE) for full terms.
+© 2026 Starisian Technologies. All Rights Reserved. See [LICENSE](LICENSE.md) for full terms.

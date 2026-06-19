@@ -41,14 +41,6 @@ def test_empty_user_agent_block():
     r = requests.get(BASE_URL, headers={"User-Agent": ""}, timeout=2)
     assert r.status_code in [200, 404]
 
-def test_empty_user_agent_blocked_check_placeholder():
-    """
-    Placeholder: If we were testing from an external IP, we would expect:
-    with pytest.raises(ConnectionError):
-        requests.get(BASE_URL, headers={"User-Agent": ""})
-    """
-    pass
-
 def test_sql_injection_block():
     """Ensure SQL Injection query strings are ghosted (return 444)."""
     with pytest.raises(ConnectionError):

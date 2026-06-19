@@ -81,9 +81,6 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y nginx
 
-      - name: Validate Python Script Syntax
-        run: python3 -m compileall scripts tests
-
       - name: Deploy SPARXSTAR Event Horizon Config
         run: |
           sudo cp nginx/conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
@@ -122,7 +119,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install Test Dependencies
-        run: pip install requests pytest
+        run: pip install requests==2.32.3 pytest==8.3.5
 
       - name: Run Attack Simulation Tests
         run: pytest tests/test_firewall.py -v

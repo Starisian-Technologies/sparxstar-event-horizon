@@ -1,0 +1,28 @@
+# CODEOWNERS
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Ownership rules are evaluated bottom-up — the last matching pattern wins.
+# All paths are relative to the repository root.
+
+# Default: all files require review from core maintainers
+*                                           @Starisian-Technologies/core
+
+# Nginx logic core — security-sensitive, requires senior review
+nginx/conf.d/000-spx-horizon-logic.conf    @MaximillianGroup
+nginx/conf.d/spx-cloudflare-trust.conf     @MaximillianGroup
+
+# Threat intelligence maps
+nginx/maps/                                @MaximillianGroup
+
+# Shared snippet forwarded to upstream PHP
+nginx/snippets/                            @MaximillianGroup
+
+# Automation scripts — network calls and file writes
+scripts/                                   @MaximillianGroup
+
+# CI/CD pipeline — deployment and secret handling
+.github/                                   @MaximillianGroup
+
+# Governance and licensing
+LICENSE.md                                 @MaximillianGroup
+SECURITY.md                                @MaximillianGroup

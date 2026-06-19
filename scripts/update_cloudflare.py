@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-SPARXSTAR EVENT HORIZON v2.0
+SPARXSTAR EVENT HORIZON v2.1
 Copyright (c) 2026 Starisian Technologies. All Rights Reserved.
 Proprietary / Closed Source.
 
 SPARXSTAR Event Horizon - Cloudflare IP Range Updater
 Fetches the official Cloudflare IP ranges and regenerates
-conf.d/spx-cloudflare-trust.conf so the RealIP module always
+nginx/conf.d/spx-cloudflare-trust.conf so the RealIP module always
 trusts only verified Cloudflare edge nodes.
 
 Usage:
-    python scripts/update_cloudflare.py [--output conf.d/spx-cloudflare-trust.conf]
+    python scripts/update_cloudflare.py [--output nginx/conf.d/spx-cloudflare-trust.conf]
 
 Run this monthly (or via a cron/CI job) to keep the trust list current.
 After running, always validate and reload Nginx:
@@ -31,7 +31,7 @@ CF_V6_URL = "https://www.cloudflare.com/ips-v6"
 
 # ---------------------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_OUTPUT = REPO_ROOT / "conf.d" / "spx-cloudflare-trust.conf"
+DEFAULT_OUTPUT = REPO_ROOT / "nginx" / "conf.d" / "spx-cloudflare-trust.conf"
 
 
 def fetch_ip_ranges(url: str) -> list[str]:
