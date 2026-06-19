@@ -50,15 +50,16 @@ All threat evaluation runs *before* Nginx's regex location matching. Every reque
 
 ```text
 sparxstar-event-horizon/
-├── conf.d/
-│   ├── 000-spx-horizon-logic.conf      # Logic Core — maps, zones, aggregation
-│   └── spx-cloudflare-trust.conf       # RealIP trust list (refresh with update_cloudflare.py)
-├── maps/
-│   └── high-risk-geo.map               # Editable high-risk country code list
+├── nginx/
+│   ├── conf.d/
+│   │   ├── 000-spx-horizon-logic.conf  # Logic Core — maps and aggregation
+│   │   └── spx-cloudflare-trust.conf   # RealIP trust list (refresh with update_cloudflare.py)
+│   ├── maps/
+│   │   └── high-risk-geo.map           # Editable high-risk country code list
+│   └── snippets/
+│       └── spx-dynamic-proxy-headers.conf # X-SPX-* and X-SPARXSTAR-* proxy headers (per proxied location)
 ├── docs/
 │   └── operator-example-server-block.conf # Operator reference (CI also uses this file)
-├── snippets/
-│   ├── spx-dynamic-proxy-headers.conf  # X-SPX-* and X-SPARXSTAR-* proxy headers (per proxied location)
 ├── scripts/
 │   ├── update_cloudflare.py            # Refreshes Cloudflare IP trust list
 │   └── update_bots.py                  # Refreshes bad-bot User-Agent map
@@ -435,7 +436,7 @@ Alternatively, use your cloud provider's firewall rules (AWS Security Groups, Di
 
 ### Rate Limiting Zones
 
-The following zones are defined in `000-spx-horizon-logic.conf`. Adjust the rates and burst values to match your traffic profile:
+Event Horizon runtime locations use the zones below. Define the corresponding `limit_req_zone` / `limit_conn_zone` directives in your platform-owned `http{}` config (for example, `nginx.conf` or an http-included `conf.d` file), then adjust rates and burst values to match your traffic profile:
 
 | Zone | Applies to | Default rate | Burst |
 |---|---|---|---|
@@ -478,7 +479,7 @@ After editing: `sudo nginx -t && sudo systemctl reload nginx`
 - **Allow a specific IP through the firewall:** Add it to the `$spx_firewall_active` map (Section 4) with value `0`.
 - **Allow a monitoring tool with no User-Agent:** Add its IP to the `$spx_empty_ua_is_bad` map (Section 6) with value `0`.
 - **Add or remove blocked bots:** Edit the `$spx_bad_bot` map (Section 6), or run `update_bots.py` to replace the full list.
-- **Change rate limits:** Edit the `limit_req_zone` directives in Section 3 of `000-spx-horizon-logic.conf`, and the `limit_req` burst values in your operator server block locations.
+- **Change rate limits:** Edit the platform-owned `limit_req_zone` / `limit_conn_zone` directives in your `http{}` runtime config, and the `limit_req` burst values in your operator server block locations.
 
 ---
 
