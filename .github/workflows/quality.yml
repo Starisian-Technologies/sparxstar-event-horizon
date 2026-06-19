@@ -99,7 +99,7 @@ jobs:
           limit_req_zone $spx_real_ip zone=spx_wp_login:10m rate=5r/m;
           limit_req_zone $spx_real_ip zone=spx_graphql:10m rate=30r/m;
           limit_req_zone $spx_real_ip zone=spx_submission:10m rate=20r/m;
-          limit_req_zone $spx_real_ip zone=spx_general:10m rate=300r/m;
+          limit_req_zone $spx_real_ip zone=spx_general:20m rate=300r/m;
           EOF
 
           sudo cp docs/operator-example-server-block.conf /etc/nginx/sites-available/default
