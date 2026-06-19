@@ -27,14 +27,14 @@ jobs:
       - name: Deploy SPARXSTAR Event Horizon Config
         run: |
           # 1. Copy Logic file to http context directory (000- prefix ensures it loads first)
-          sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
+          sudo cp nginx/conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
 
           # 2. Copy Cloudflare trust file to http context directory
-          sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
+          sudo cp nginx/conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
 
           # 3. Create snippets directory and copy shipped snippet files
           sudo mkdir -p /etc/nginx/snippets
-          sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
+          sudo cp nginx/snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
 
           # 4. Write a minimal CI server block that references only files deployed in this job
           sudo tee /etc/nginx/sites-available/default > /dev/null <<'EOF'
@@ -61,7 +61,7 @@ jobs:
 
           # 6. Deploy high-risk geo map (operators customise this file)
           sudo mkdir -p /etc/nginx/maps
-          sudo cp maps/high-risk-geo.map /etc/nginx/maps/high-risk-geo.map
+          sudo cp nginx/maps/spx-high-risk-geo.map /etc/nginx/maps/high-risk-geo.map
 
       - name: Validate Nginx Syntax
         run: sudo nginx -t
@@ -86,10 +86,21 @@ jobs:
 
       - name: Deploy SPARXSTAR Event Horizon Config
         run: |
-          sudo cp conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
-          sudo cp conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
+          sudo cp nginx/conf.d/000-spx-horizon-logic.conf /etc/nginx/conf.d/
+          sudo cp nginx/conf.d/spx-cloudflare-trust.conf /etc/nginx/conf.d/
           sudo mkdir -p /etc/nginx/snippets
-          sudo cp snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
+          sudo cp nginx/snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
+
+          # Provide CI-only runtime rate-limit zones required by the
+          # operator example server block used in this workflow.
+          sudo tee /etc/nginx/conf.d/001-spx-ci-rate-limits.conf > /dev/null <<'EOF'
+          limit_conn_zone $spx_real_ip zone=spx_conn:10m;
+          limit_req_zone $spx_real_ip zone=spx_req:10m rate=20r/s;
+          limit_req_zone $spx_real_ip zone=spx_wp_login:10m rate=5r/m;
+          limit_req_zone $spx_real_ip zone=spx_graphql:10m rate=30r/m;
+          limit_req_zone $spx_real_ip zone=spx_submission:10m rate=20r/m;
+          limit_req_zone $spx_real_ip zone=spx_general:10m rate=300r/m;
+          EOF
 
           sudo cp docs/operator-example-server-block.conf /etc/nginx/sites-available/default
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
@@ -100,7 +111,7 @@ jobs:
 
           # Deploy high-risk geo map
           sudo mkdir -p /etc/nginx/maps
-          sudo cp maps/high-risk-geo.map /etc/nginx/maps/high-risk-geo.map
+          sudo cp nginx/maps/spx-high-risk-geo.map /etc/nginx/maps/high-risk-geo.map
 
       - name: Enable Firewall for CI Test Runner
         run: |
