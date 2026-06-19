@@ -50,15 +50,16 @@ All threat evaluation runs *before* Nginx's regex location matching. Every reque
 
 ```text
 sparxstar-event-horizon/
-├── conf.d/
-│   ├── 000-spx-horizon-logic.conf      # Logic Core — maps and aggregation
-│   └── spx-cloudflare-trust.conf       # RealIP trust list (refresh with update_cloudflare.py)
-├── maps/
-│   └── high-risk-geo.map               # Editable high-risk country code list
+├── nginx/
+│   ├── conf.d/
+│   │   ├── 000-spx-horizon-logic.conf  # Logic Core — maps and aggregation
+│   │   └── spx-cloudflare-trust.conf   # RealIP trust list (refresh with update_cloudflare.py)
+│   ├── maps/
+│   │   └── high-risk-geo.map           # Editable high-risk country code list
+│   └── snippets/
+│       └── spx-dynamic-proxy-headers.conf # X-SPX-* and X-SPARXSTAR-* proxy headers (per proxied location)
 ├── docs/
 │   └── operator-example-server-block.conf # Operator reference (CI also uses this file)
-├── snippets/
-│   ├── spx-dynamic-proxy-headers.conf  # X-SPX-* and X-SPARXSTAR-* proxy headers (per proxied location)
 ├── scripts/
 │   ├── update_cloudflare.py            # Refreshes Cloudflare IP trust list
 │   └── update_bots.py                  # Refreshes bad-bot User-Agent map
