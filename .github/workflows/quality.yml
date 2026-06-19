@@ -91,17 +91,6 @@ jobs:
           sudo mkdir -p /etc/nginx/snippets
           sudo cp nginx/snippets/spx-dynamic-proxy-headers.conf /etc/nginx/snippets/
 
-          # Provide CI-only runtime rate-limit zones required by the
-          # operator example server block used in this workflow.
-          sudo tee /etc/nginx/conf.d/001-spx-ci-runtime-zones.conf > /dev/null <<'EOF'
-          limit_conn_zone $spx_real_ip zone=spx_conn:10m;
-          limit_req_zone $spx_real_ip zone=spx_req:10m rate=20r/s;
-          limit_req_zone $spx_real_ip zone=spx_wp_login:10m rate=5r/m;
-          limit_req_zone $spx_real_ip zone=spx_graphql:10m rate=30r/m;
-          limit_req_zone $spx_real_ip zone=spx_submission:10m rate=20r/m;
-          limit_req_zone $spx_real_ip zone=spx_general:20m rate=300r/m;
-          EOF
-
           sudo cp docs/operator-example-server-block.conf /etc/nginx/sites-available/default
           sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
 
