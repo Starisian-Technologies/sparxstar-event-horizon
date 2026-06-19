@@ -93,7 +93,7 @@ jobs:
 
           # Provide CI-only runtime rate-limit zones required by the
           # operator example server block used in this workflow.
-          sudo tee /etc/nginx/conf.d/001-spx-ci-rate-limits.conf > /dev/null <<'EOF'
+          sudo tee /etc/nginx/conf.d/001-spx-ci-runtime-zones.conf > /dev/null <<'EOF'
           limit_conn_zone $spx_real_ip zone=spx_conn:10m;
           limit_req_zone $spx_real_ip zone=spx_req:10m rate=20r/s;
           limit_req_zone $spx_real_ip zone=spx_wp_login:10m rate=5r/m;
