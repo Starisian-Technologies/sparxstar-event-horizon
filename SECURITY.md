@@ -7,7 +7,7 @@
 | 2.1.x   | ✅ Yes     |
 | < 2.1   | ❌ No      |
 
-Only the current major release receives security fixes.
+Only the current release line (2.1.x) receives security fixes.
 
 ---
 
