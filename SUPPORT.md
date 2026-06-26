@@ -15,7 +15,7 @@ Start with the project documentation before opening a support request:
 The README contains a **Troubleshooting** section covering the most common
 deployment issues:
 
-- `map_hash_bucket_size directive is duplicate`
+- `map_hash_bucket_size directive is duplicated`
 - Missing `high-risk-geo.map` at startup
 - Missing `worker-secret.conf` at startup
 - `X-SPARXSTAR-*` headers always empty
