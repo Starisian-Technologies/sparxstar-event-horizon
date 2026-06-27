@@ -508,10 +508,12 @@ Run `sudo crontab -e`, paste the two lines, save and exit. Verify with `sudo cro
 Install it with correct ownership and permissions:
 
 ```bash
-sudo install -m 0644 -o root -g root /dev/stdin /etc/cron.d/spx-horizon <<'EOF'
+sudo tee /etc/cron.d/spx-horizon > /dev/null <<'EOF'
 0 3 * * 1 root /usr/bin/python3 /etc/nginx/scripts/update_bots.py --output /etc/nginx/conf.d/000-spx-horizon-logic.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
 0 4 1 * * root /usr/bin/python3 /etc/nginx/scripts/update_cloudflare.py --output /etc/nginx/conf.d/spx-cloudflare-trust.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
 EOF
+sudo chown root:root /etc/cron.d/spx-horizon
+sudo chmod 0644 /etc/cron.d/spx-horizon
 ```
 
 > Files in `/etc/cron.d/` must be owned by root, **not** be group/world-writable, and end with a trailing newline — cron silently ignores a file that violates any of these.
@@ -610,6 +612,7 @@ python3 -m pytest tests/test_firewall.py -v
 ```bash
 # pip itself is frequently not installed — add it first
 sudo apt install -y python3-pip          # Debian/Ubuntu
+# or: sudo dnf install -y python3-pip    # RHEL/Rocky/AlmaLinux
 # then install the libraries. On PEP 668 "externally managed" systems
 # (Ubuntu 23.04+, Debian 12+) pip refuses to touch system packages, so
 # use a virtualenv (preferred) ...
@@ -642,6 +645,8 @@ sudo tail -f /var/log/nginx/spx-blocked.log
 ```
 
 A `444`/connection-reset on the client plus a matching line in `spx-blocked.log` is the production equivalent of a test PASS.
+
+> **⚠️ Cloudflare's own WAF may block the test patterns before they reach your origin.** Generic attack signatures like `UNION SELECT` or `wp-config.php` can be intercepted at Cloudflare's edge, in which case `curl` receives a standard Cloudflare response (e.g. HTTP `403`) rather than an origin `444`/connection reset — and nothing appears in `spx-blocked.log` because the request never reached Event Horizon. **Use `/spx-trap` as the most reliable origin-ghosting check:** it is unique to Event Horizon, is never referenced by legitimate traffic, and is not matched by Cloudflare's default managed rules, so a request to it always reaches the origin to be ghosted and logged.
 
 ---
 
