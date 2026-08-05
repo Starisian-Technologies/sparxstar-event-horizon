@@ -7,6 +7,29 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Documentation
+
+- **Testing:** Documented that the attack-simulation suite validates only a
+  bare, local install and cannot validate a Cloudflare-fronted origin (TLS
+  cert mismatch and missing `CF-Connecting-IP` produce false failures). Added
+  a log-based validation procedure (`/var/log/nginx/spx-blocked.log`) for
+  production deployments.
+- **Testing:** Reworked the test-runner install instructions to lead with the
+  distro-package path (`apt install python3-pytest python3-requests`) and the
+  correct runner invocation (`pytest-3` / `python3 -m pytest`), with `pip`
+  (including virtualenv and `--break-system-packages`) given only as a fallback.
+- **Cron:** Added explicit installation instructions for the automated-update
+  jobs covering both `crontab -e` and `/etc/cron.d/`, the user-field syntax
+  difference between them, and a note that the `--output` filename must match
+  the deployed config filename.
+- **Worker secret:** Documented what the worker secret is (a high-entropy
+  shared secret), how to generate one (`openssl rand`), and the header-safe
+  character constraints.
+
+---
+
 ## [2.1.0] — 2026-04-01
 
 ### Changed

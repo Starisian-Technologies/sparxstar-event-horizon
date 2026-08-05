@@ -324,18 +324,46 @@ Replace `203.0.113.45` with your actual admin egress IP (your home IP, VPN exit 
 
 This file is the trust anchor for the entire `X-SPARXSTAR-*` identity header chain. **Nginx will refuse to start if this file does not exist.**
 
+#### What kind of secret?
+
+The secret is a **shared secret** — an opaque, high-entropy random string known only to your Cloudflare Worker and this origin. It is not a key with a required format, length, or algorithm; it is compared as a literal string. Treat it like a password:
+
+- **High entropy:** at least 32 bytes of randomness (≈ 256 bits). Longer is fine.
+- **URL/header-safe characters:** it travels in the `X-Worker-Origin-Secret` HTTP header, so stick to characters valid in a header value. Hex or base64url output is safest — avoid spaces, `"`, and `;` (the last two collide with Nginx map syntax).
+- **Unique per environment:** use a different secret for staging and production. Rotate it if it is ever exposed.
+
+#### Generating one
+
+Pick any of these (all produce a header-safe string):
+
+```bash
+openssl rand -hex 32          # 64 hex chars  — most portable
+openssl rand -base64 48 | tr '+/' '-_' | tr -d '='   # base64url, no padding
+head -c 32 /dev/urandom | xxd -p -c 32                # hex via /dev/urandom
+uuidgen | tr -d '-'           # lower-entropy fallback if openssl is unavailable
+```
+
+#### Writing the file
+
 ```bash
 sudo mkdir -p /etc/nginx/secrets
 
-# The value must be a quoted Nginx map string followed by " 1;"
-# The quotes are part of the Nginx map syntax — they are not optional
-echo '"your-actual-shared-secret" 1;' | sudo tee /etc/nginx/secrets/worker-secret.conf
+# Generate the secret and write it in Nginx map syntax in one step.
+# The surrounding quotes and the trailing " 1;" are REQUIRED Nginx map
+# syntax — they are not part of the secret value itself.
+# No openssl? Substitute any generator from the list above, e.g.
+#   SECRET="$(uuidgen | tr -d '-')"
+SECRET="$(openssl rand -hex 32)"
+echo "\"$SECRET\" 1;" | sudo tee /etc/nginx/secrets/worker-secret.conf
 
 sudo chown root:root /etc/nginx/secrets/worker-secret.conf
 sudo chmod 600 /etc/nginx/secrets/worker-secret.conf
+
+# Print the bare value to paste into your Cloudflare Worker's secret store:
+echo "$SECRET"
 ```
 
-The secret value must match the `X-Worker-Origin-Secret` header that your Cloudflare Worker sends. If no Worker is deployed yet, this file still needs to exist — create it with a placeholder value. Identity headers will evaluate to empty strings until a matching Worker is in place.
+The secret value (the part inside the quotes) must match the `X-Worker-Origin-Secret` header that your Cloudflare Worker sends — store it in the Worker as an encrypted secret/environment variable, not in code. If no Worker is deployed yet, this file still needs to exist — create it with a placeholder value. Identity headers will evaluate to empty strings until a matching Worker is in place.
 
 > **Never commit the secret value.** The file is listed in `.gitignore` intentionally.
 
@@ -449,6 +477,14 @@ Event Horizon runtime locations use the zones below. Define the corresponding `l
 
 ### Automated Updates (Cron)
 
+The two refresh scripts should run on a schedule. The jobs below run as **root** (they write into `/etc/nginx/` and reload Nginx), so they must be installed in root's crontab or under `/etc/cron.d/` — not a normal user's crontab.
+
+> **⚠️ The two installation methods use different syntax.** `crontab -e` entries have **no user field**; `/etc/cron.d/` entries require a **user field** (`root`) between the schedule and the command. Pasting a `/etc/cron.d/`-style line into `crontab -e` (or vice versa) will silently fail or error. Pick one method below and use its exact format.
+
+> **⚠️ Match the deployed filename.** The `--output` paths below name `000-spx-horizon-logic.conf` and `spx-cloudflare-trust.conf`. If you deployed these files under different names, edit the cron lines to match — a mismatched output path will overwrite the wrong file or create a stray one.
+
+**Method A — root crontab (`sudo crontab -e`)** — no user field:
+
 ```cron
 # Update bot signatures weekly (Monday 03:00)
 0 3 * * 1 /usr/bin/python3 /etc/nginx/scripts/update_bots.py --output /etc/nginx/conf.d/000-spx-horizon-logic.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
@@ -456,6 +492,33 @@ Event Horizon runtime locations use the zones below. Define the corresponding `l
 # Update Cloudflare IP ranges monthly (1st of month 04:00)
 0 4 1 * * /usr/bin/python3 /etc/nginx/scripts/update_cloudflare.py --output /etc/nginx/conf.d/spx-cloudflare-trust.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
 ```
+
+Run `sudo crontab -e`, paste the two lines, save and exit. Verify with `sudo crontab -l`.
+
+**Method B — drop-in file (`/etc/cron.d/spx-horizon`)** — note the added `root` user field:
+
+```cron
+# /etc/cron.d/spx-horizon  — owned by root, mode 0644, MUST end with a newline
+# ┌ min ┌ hr ┌ dom ┌ mon ┌ dow ┌ USER ── command ───────────────────────────
+# Update bot signatures weekly (Monday 03:00)
+0 3 * * 1 root /usr/bin/python3 /etc/nginx/scripts/update_bots.py --output /etc/nginx/conf.d/000-spx-horizon-logic.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
+
+# Update Cloudflare IP ranges monthly (1st of month 04:00)
+0 4 1 * * root /usr/bin/python3 /etc/nginx/scripts/update_cloudflare.py --output /etc/nginx/conf.d/spx-cloudflare-trust.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
+```
+
+Install it with correct ownership and permissions:
+
+```bash
+sudo tee /etc/cron.d/spx-horizon > /dev/null <<'EOF'
+0 3 * * 1 root /usr/bin/python3 /etc/nginx/scripts/update_bots.py --output /etc/nginx/conf.d/000-spx-horizon-logic.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
+0 4 1 * * root /usr/bin/python3 /etc/nginx/scripts/update_cloudflare.py --output /etc/nginx/conf.d/spx-cloudflare-trust.conf && /usr/sbin/nginx -t && /usr/bin/systemctl reload nginx
+EOF
+sudo chown root:root /etc/cron.d/spx-horizon
+sudo chmod 0644 /etc/cron.d/spx-horizon
+```
+
+> Files in `/etc/cron.d/` must be owned by root, **not** be group/world-writable, and end with a trailing newline — cron silently ignores a file that violates any of these.
 
 The `nginx -t &&` guard prevents a broken update from being applied. If the generated config has a syntax error, the old configuration stays active.
 
@@ -522,10 +585,70 @@ sudo grep '/spx-trap' /var/log/nginx/spx-blocked.log
 
 Event Horizon ships an attack simulation test suite. Tests connect to a live local Nginx instance — a `ConnectionError` is a **PASS** (the firewall ghosted the connection). A `200` or `404` on a blocked path is a **FAIL**.
 
+> **⚠️ The test suite only validates a bare, local install.** It assumes Nginx is reachable directly at `http://localhost` with no edge in front of it. **It cannot validate a production deployment that sits behind Cloudflare (and/or Varnish).** On a Cloudflare-fronted origin the suite produces false failures that look like firewall faults but are not — see [Validating a Cloudflare-fronted deployment](#validating-a-cloudflare-fronted-deployment) below for why, and for the log-based method you should use instead.
+
+### Installing the test runner
+
+The suite needs Python 3, `pytest`, and `requests`. **Lead with your distribution's packages** — a stock Ubuntu/Debian server has no `pip` and the package path avoids the `--break-system-packages` friction entirely:
+
 ```bash
-pip3 install pytest requests
-pytest tests/test_firewall.py -v
+# Debian / Ubuntu (recommended — no pip required)
+sudo apt update && sudo apt install -y python3-pytest python3-requests
 ```
+
+```bash
+# RHEL / Rocky / AlmaLinux
+sudo dnf install -y python3-pytest python3-requests
+```
+
+When installed from distro packages the runner is **`pytest-3`** (Debian/Ubuntu) or **`python3 -m pytest`**, *not* a bare `pytest` — the unversioned `pytest` command often does not exist:
+
+```bash
+pytest-3 tests/test_firewall.py -v
+# or, portable across distros:
+python3 -m pytest tests/test_firewall.py -v
+```
+
+**pip fallback (only if your distro has no `python3-pytest` package):**
+
+```bash
+# pip itself is frequently not installed — add it first
+sudo apt install -y python3-pip          # Debian/Ubuntu
+# or: sudo dnf install -y python3-pip    # RHEL/Rocky/AlmaLinux
+# then install the libraries. On PEP 668 "externally managed" systems
+# (Ubuntu 23.04+, Debian 12+) pip refuses to touch system packages, so
+# use a virtualenv (preferred) ...
+python3 -m venv ~/.spx-venv && ~/.spx-venv/bin/pip install pytest requests
+~/.spx-venv/bin/pytest tests/test_firewall.py -v
+
+# ... or override the guard if you accept writing to system site-packages:
+pip3 install --break-system-packages pytest requests
+```
+
+### Validating a Cloudflare-fronted deployment
+
+The shipped tests request `http://localhost` from the box itself. On a real deployment behind Cloudflare this is **not** how legitimate traffic arrives, so the tests misreport two non-faults as firewall failures:
+
+- **TLS verification failure (`CERTIFICATE_VERIFY_FAILED`)** — if you point the tests at `https://<origin>`, the origin certificate is issued for your public domain, not `localhost`, so `requests` rejects it (the suite intentionally does not pass `verify=False`).
+- **Blocks "DID NOT RAISE"** — the shipped logic core lists `127.0.0.1`/`::1` in the Emergency Bypass, so loopback traffic evaluates to `$spx_firewall_active = 0` and therefore `$spx_final_decision = 0` — a request originating from the box itself is **never** ghosted, no matter what attack payload it carries. (CI strips those bypass entries — the `# spx-admin-bypass` lines — precisely so the attack tests can see a block; a production origin keeps the bypass in place.) Compounding this, because the request does not arrive from a Cloudflare IP, `$spx_from_cloudflare = 0`, so `CF-Connecting-IP` is never decoded (`$spx_real_ip` stays `127.0.0.1`) and the `X-SPARXSTAR-*` worker-identity path can't be exercised either. Block-tests that expect a ghosted connection instead get a normal response.
+
+These are artifacts of bypassing the edge, not firewall faults. **On a production origin, do not rely on the test suite — validate from the logs instead.** Every ghosted connection is written to `/var/log/nginx/spx-blocked.log` (see [Log Monitoring](#-log-monitoring)). Send known-bad requests *through Cloudflare* (i.e. to your public hostname) and confirm each one is ghosted and logged:
+
+```bash
+# From an external host, hit your PUBLIC hostname so the request traverses
+# Cloudflare and arrives with a real CF-Connecting-IP. A ghosted request
+# returns no HTTP response (connection reset) — curl exits non-zero.
+curl -sS --max-time 5 "https://example.com/spx-trap"                       # honeypot → ghosted
+curl -sS --max-time 5 "https://example.com/?id=1'+UNION+SELECT+user"       # SQLi → ghosted
+curl -sS --max-time 5 "https://example.com/wp-config.php"                   # sensitive file → ghosted
+
+# Then confirm each attempt was ghosted and logged on the origin:
+sudo tail -f /var/log/nginx/spx-blocked.log
+```
+
+A `444`/connection-reset on the client plus a matching line in `spx-blocked.log` is the production equivalent of a test PASS.
+
+> **⚠️ Cloudflare's own WAF may block the test patterns before they reach your origin.** Generic attack signatures like `UNION SELECT` or `wp-config.php` can be intercepted at Cloudflare's edge, in which case `curl` receives a standard Cloudflare response (e.g. HTTP `403`) rather than an origin `444`/connection reset — and nothing appears in `spx-blocked.log` because the request never reached Event Horizon. **Use `/spx-trap` as the most reliable origin-ghosting check:** it is unique to Event Horizon, is never referenced by legitimate traffic, and is not matched by Cloudflare's default managed rules, so a request to it always reaches the origin to be ghosted and logged.
 
 ---
 
