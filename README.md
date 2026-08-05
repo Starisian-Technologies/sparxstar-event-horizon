@@ -351,6 +351,8 @@ sudo mkdir -p /etc/nginx/secrets
 # Generate the secret and write it in Nginx map syntax in one step.
 # The surrounding quotes and the trailing " 1;" are REQUIRED Nginx map
 # syntax — they are not part of the secret value itself.
+# No openssl? Substitute any generator from the list above, e.g.
+#   SECRET="$(uuidgen | tr -d '-')"
 SECRET="$(openssl rand -hex 32)"
 echo "\"$SECRET\" 1;" | sudo tee /etc/nginx/secrets/worker-secret.conf
 
@@ -628,7 +630,7 @@ pip3 install --break-system-packages pytest requests
 The shipped tests request `http://localhost` from the box itself. On a real deployment behind Cloudflare this is **not** how legitimate traffic arrives, so the tests misreport two non-faults as firewall failures:
 
 - **TLS verification failure (`CERTIFICATE_VERIFY_FAILED`)** — if you point the tests at `https://<origin>`, the origin certificate is issued for your public domain, not `localhost`, so `requests` rejects it (the suite intentionally does not pass `verify=False`).
-- **`520` / blocks "DID NOT RAISE"** — a raw localhost request carries no `CF-Connecting-IP`, so `$spx_from_cloudflare = 0`. The request never decodes a real client IP and never flows through the gate the way edge traffic does, so block-tests that expect a ghosted connection instead see a response.
+- **Blocks "DID NOT RAISE"** — the shipped logic core lists `127.0.0.1`/`::1` in the Emergency Bypass, so loopback traffic evaluates to `$spx_firewall_active = 0` and therefore `$spx_final_decision = 0` — a request originating from the box itself is **never** ghosted, no matter what attack payload it carries. (CI strips those bypass entries — the `# spx-admin-bypass` lines — precisely so the attack tests can see a block; a production origin keeps the bypass in place.) Compounding this, because the request does not arrive from a Cloudflare IP, `$spx_from_cloudflare = 0`, so `CF-Connecting-IP` is never decoded (`$spx_real_ip` stays `127.0.0.1`) and the `X-SPARXSTAR-*` worker-identity path can't be exercised either. Block-tests that expect a ghosted connection instead get a normal response.
 
 These are artifacts of bypassing the edge, not firewall faults. **On a production origin, do not rely on the test suite — validate from the logs instead.** Every ghosted connection is written to `/var/log/nginx/spx-blocked.log` (see [Log Monitoring](#-log-monitoring)). Send known-bad requests *through Cloudflare* (i.e. to your public hostname) and confirm each one is ghosted and logged:
 
